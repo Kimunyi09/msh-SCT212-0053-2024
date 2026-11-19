@@ -5,6 +5,7 @@
 #define MAX_ARGS 64
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 int main(void) {
     char *line = NULL;
@@ -57,6 +58,28 @@ int main(void) {
                 continue;
             }
         }
+        /* Scan argv for output redirection token ">" */
+        char *outfile = NULL;
+        int redirect_error = 0;
+        for (int i = 0; argv[i] != NULL; i++) {
+            if (strcmp(argv[i], ">") == 0) {
+                if (argv[i + 1] == NULL) {
+                    fprintf(stderr, "msh: syntax error near unexpected token `newline'\n");
+                    last_status = 1;
+                    redirect_error = 1;
+                    break;
+                }
+                outfile = argv[i + 1];
+                argv[i] = NULL;
+                break;
+            }
+        }
+        if (redirect_error) {
+            continue;
+        }
+        if (argv[0] == NULL) {
+            continue;
+        }
         
         /* Handle built-in commands before forking */
         if (strcmp(argv[0], "exit") == 0) {
@@ -92,7 +115,22 @@ int main(void) {
             /* Fork failed; report error and return to prompt */
             perror("fork");
             continue;
-        } else if (pid == 0) {
+ } else if (pid == 0) {
+            /* Redirect stdout in child process only if ">" was specified */
+            if (outfile != NULL) {
+                int fd = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                if (fd < 0) {
+                    perror(outfile);
+                    _exit(1);
+                }
+                if (dup2(fd, STDOUT_FILENO) < 0) {
+                    perror("dup2");
+                    close(fd);
+                    _exit(1);
+                }
+                close(fd);
+            }
+
             /* Child process replaces its image with the requested command */
             execvp(argv[0], argv);
             perror(argv[0]);
