@@ -13,6 +13,11 @@ int main(void) {
     int last_status = 0;
 
     while (1) {
+    /* Reap any finished background child processes before printing prompt */
+        int st;
+        while (waitpid(-1, &st, WNOHANG) > 0) {
+        }
+        
     /* Display the shell prompt and flush stdout immediately */
         printf("msh> ");
         fflush(stdout); 
@@ -41,6 +46,18 @@ int main(void) {
         if (argv[0] == NULL) {
             continue;
         }
+        
+        /* Check for trailing "&" to run command in the background */
+        int background = 0;
+        if (argc > 0 && strcmp(argv[argc - 1], "&") == 0) {
+            background = 1;
+            argv[argc - 1] = NULL;
+            argc--;
+            if (argv[0] == NULL) {
+                continue;
+            }
+        }
+        
         /* Handle built-in commands before forking */
         if (strcmp(argv[0], "exit") == 0) {
             break;
@@ -80,10 +97,14 @@ int main(void) {
             execvp(argv[0], argv);
             perror(argv[0]);
             _exit(127);
-        } else {
-            /* Parent process waits for the child to finish and records status */
-            if (waitpid(pid, &last_status, 0) == -1) {
-                perror("waitpid");
+        }  else {
+            /* Parent process either prints background PID or waits for foreground child */
+            if (background) {
+                printf("[started pid %d]\n", pid);
+            } else {
+                if (waitpid(pid, &last_status, 0) == -1) {
+                    perror("waitpid");
+                }
             }
         }
 
