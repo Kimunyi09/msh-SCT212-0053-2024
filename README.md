@@ -45,7 +45,8 @@ help				Prints the list of supported 	built in commands(cd,
 
 
 
-
-
-
+AI Tool Declaration: 
+Gemini was used as a programming tutor to review incremental C implementations, diagnose  edge-
+compiler warnings and process-control bugs, verify
+case test scenarios, and help structure this README.md.
 
