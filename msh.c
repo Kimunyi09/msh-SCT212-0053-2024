@@ -18,9 +18,9 @@ int main(void) {
         while (waitpid(-1, &st, WNOHANG) > 0) {
         }
         
-    /* Display the shell prompt and flush stdout immediately */
-        printf("msh> ");
-        fflush(stdout); 
+           /* Display prompt with the exit status of the previous foreground command */
+        printf("msh[%d]> ", last_status);
+        fflush(stdout);
         
 /* Read a line of arbitrary length from standard input */
         nread = getline(&line, &cap, stdin);
@@ -97,17 +97,21 @@ int main(void) {
             execvp(argv[0], argv);
             perror(argv[0]);
             _exit(127);
-        }  else {
+        } else {
             /* Parent process either prints background PID or waits for foreground child */
             if (background) {
                 printf("[started pid %d]\n", pid);
             } else {
-                if (waitpid(pid, &last_status, 0) == -1) {
+                int status;
+                if (waitpid(pid, &status, 0) == -1) {
                     perror("waitpid");
+                } else if (WIFEXITED(status)) {
+                    last_status = WEXITSTATUS(status);
+                } else if (WIFSIGNALED(status)) {
+                    last_status = 128 + WTERMSIG(status);
                 }
             }
         }
-
         
     }
     
