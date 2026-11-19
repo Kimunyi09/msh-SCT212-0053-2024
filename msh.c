@@ -3,11 +3,14 @@
 #include <stdlib.h>
 #include <string.h>
 #define MAX_ARGS 64
+#include <unistd.h>
+#include <sys/wait.h>
 
 int main(void) {
     char *line = NULL;
     size_t cap = 0;
     ssize_t nread;
+    int last_status = 0;
 
     while (1) {
     /* Display the shell prompt and flush stdout immediately */
@@ -38,9 +41,22 @@ int main(void) {
         if (argv[0] == NULL) {
             continue;
         }
-        /* Print parsed tokens to verify tokenizer output */
-        for (int i = 0; argv[i] != NULL; i++) {
-            printf("argv[%d]: \"%s\"\n", i, argv[i]);
+        //* Fork a child process to execute the external command */
+        pid_t pid = fork();
+        if (pid == -1) {
+            /* Fork failed; report error and return to prompt */
+            perror("fork");
+            continue;
+        } else if (pid == 0) {
+            /* Child process replaces its image with the requested command */
+            execvp(argv[0], argv);
+            perror(argv[0]);
+            _exit(127);
+        } else {
+            /* Parent process waits for the child to finish and records status */
+            if (waitpid(pid, &last_status, 0) == -1) {
+                perror("waitpid");
+            }
         }
 
         
