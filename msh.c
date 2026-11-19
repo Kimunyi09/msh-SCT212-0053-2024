@@ -41,6 +41,34 @@ int main(void) {
         if (argv[0] == NULL) {
             continue;
         }
+        /* Handle built-in commands before forking */
+        if (strcmp(argv[0], "exit") == 0) {
+            break;
+        } else if (strcmp(argv[0], "help") == 0) {
+            printf("msh built-in commands:\n");
+            printf("  cd [dir]  Change the current directory (defaults to HOME)\n");
+            printf("  help      Display this help message\n");
+            printf("  exit      Exit the shell\n");
+            last_status = 0;
+            continue;
+        } else if (strcmp(argv[0], "cd") == 0) {
+            const char *target = argv[1];
+            if (target == NULL) {
+                target = getenv("HOME");
+                if (target == NULL) {
+                    fprintf(stderr, "cd: HOME not set\n");
+                    last_status = 1;
+                    continue;
+                }
+            }
+            if (chdir(target) != 0) {
+                perror("cd");
+                last_status = 1;
+            } else {
+                last_status = 0;
+            }
+            continue;
+        }
         //* Fork a child process to execute the external command */
         pid_t pid = fork();
         if (pid == -1) {
