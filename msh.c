@@ -6,12 +6,15 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <signal.h>
 
 int main(void) {
     char *line = NULL;
     size_t cap = 0;
     ssize_t nread;
     int last_status = 0;
+    /* Ignore SIGINT in the shell itself so Ctrl-C does not terminate msh */
+    signal(SIGINT, SIG_IGN);
 
     while (1) {
     /* Reap any finished background child processes before printing prompt */
@@ -129,6 +132,10 @@ int main(void) {
                     _exit(1);
                 }
                 close(fd);
+            }
+            /* Restore default SIGINT handling for foreground children only */
+            if (!background) {
+                signal(SIGINT, SIG_DFL);
             }
 
             /* Child process replaces its image with the requested command */
